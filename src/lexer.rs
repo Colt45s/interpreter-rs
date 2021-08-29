@@ -30,6 +30,24 @@ impl<'a> Lexer<'a> {
         self.position = self.read_position;
         self.read_position += 1;
     }
+
+    fn next_token(&mut self) -> Token {
+        let tok = match self.ch {
+            b'=' => Token::ASSIGN,
+            b';' => Token::SEMICOLON,
+            b'(' => Token::LPAREN,
+            b')' => Token::RPAREN,
+            b',' => Token::COMMA,
+            b'+' => Token::PLUS,
+            b'{' => Token::LBRACE,
+            b'}' => Token::RBRACE,
+            0 => Token::EOF,
+            _ => Token::ILLEGAL,
+        };
+
+        self.read_char();
+        tok
+    }
 }
 
 #[cfg(test)]
@@ -51,8 +69,7 @@ mod tests {
             Token::SEMICOLON,
             Token::EOF,
         ];
-        let lexer = Lexer::new(input);
-
+        let mut lexer = Lexer::new(input);
         for t in tests {
             let tok = lexer.next_token();
             assert_eq!(t, tok);
