@@ -57,15 +57,52 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let input = "=+(){},;";
+        let input = r#"let five = 5;
+        let ten = 10;
+        let add = fn(x, y) {
+          x + y;
+        };
+
+        let result = add(five, ten);
+        "#;
         let tests = vec![
+            Token::LET,
+            Token::IDENT,
             Token::ASSIGN,
-            Token::PLUS,
+            Token::INT,
+            Token::SEMICOLON,
+            Token::LET,
+            Token::IDENT,
+            Token::ASSIGN,
+            Token::INT,
+            Token::SEMICOLON,
+            Token::LET,
+            Token::IDENT,
+            Token::ASSIGN,
+            Token::FUNCTION,
             Token::LPAREN,
+            Token::IDENT,
+            Token::COMMA,
+            Token::IDENT,
             Token::RPAREN,
             Token::LBRACE,
+            Token::IDENT,
+            Token::PLUS,
+            Token::IDENT,
+            Token::SEMICOLON,
             Token::RBRACE,
+            Token::SEMICOLON,
+            Token::LET,
+            Token::IDENT,
+            Token::ASSIGN,
+            Token::IDENT,
+            Token::LPAREN,
+            Token::IDENT,
+            Token::LPAREN,
+            Token::IDENT,
             Token::COMMA,
+            Token::IDENT,
+            Token::RPAREN,
             Token::SEMICOLON,
             Token::EOF,
         ];
