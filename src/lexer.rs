@@ -41,12 +41,36 @@ impl<'a> Lexer<'a> {
             b'+' => Token::PLUS,
             b'{' => Token::LBRACE,
             b'}' => Token::RBRACE,
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.read_identifier(),
             0 => Token::EOF,
             _ => Token::ILLEGAL,
         };
 
         self.read_char();
         tok
+    }
+
+    fn read_identifier(&mut self) -> Token {
+        let from = self.position;
+
+        loop {
+            match self.ch {
+                b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+                    self.read_char();
+                }
+                _ => break,
+            }
+        }
+
+        self.lookup_token(&self.input[from..self.position])
+    }
+
+    fn lookup_token(&self, ident: &str) -> Token {
+        match ident {
+            "let" => Token::LET,
+            "fn" => Token::FUNCTION,
+            ident => Token::IDENT(ident.to_string()),
+        }
     }
 }
 
