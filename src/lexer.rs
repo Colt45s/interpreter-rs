@@ -32,6 +32,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn next_token(&mut self) -> Token {
+        self.skip_whitespace();
         let tok = match self.ch {
             b'=' => Token::ASSIGN,
             b';' => Token::SEMICOLON,
@@ -41,9 +42,16 @@ impl<'a> Lexer<'a> {
             b'+' => Token::PLUS,
             b'{' => Token::LBRACE,
             b'}' => Token::RBRACE,
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.read_identifier(),
             0 => Token::EOF,
-            _ => Token::ILLEGAL,
+            _ => {
+                if self.ch.is_ascii_alphabetic() || self.ch == b'_' {
+                    return self.read_identifier();
+                } else if self.ch.is_ascii_digit() {
+                    return self.read_number();
+                } else {
+                    return Token::ILLEGAL;
+                }
+            }
         };
 
         self.read_char();
@@ -53,23 +61,39 @@ impl<'a> Lexer<'a> {
     fn read_identifier(&mut self) -> Token {
         let from = self.position;
 
-        loop {
-            match self.ch {
-                b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
-                    self.read_char();
-                }
-                _ => break,
-            }
+        while self.ch.is_ascii_alphabetic() || self.ch == b'_' {
+            self.read_char();
         }
 
-        self.lookup_token(&self.input[from..self.position])
+        self.lookup_ident(&self.input[from..self.position])
     }
 
-    fn lookup_token(&self, ident: &str) -> Token {
+    fn read_number(&mut self) -> Token {
+        let from = self.position;
+
+        while self.ch.is_ascii_digit() {
+            self.read_char();
+        }
+
+        let parsed = self.input[from..self.position].parse::<i32>().unwrap();
+
+        Token::INT(parsed)
+    }
+
+    fn lookup_ident(&self, ident: &str) -> Token {
         match ident {
             "let" => Token::LET,
             "fn" => Token::FUNCTION,
             ident => Token::IDENT(ident.to_string()),
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        loop {
+            match self.ch {
+                b' ' | b'\t' | b'\n' | b'\r' => self.read_char(),
+                _ => break,
+            }
         }
     }
 }
