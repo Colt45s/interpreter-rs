@@ -34,12 +34,32 @@ impl<'a> Lexer<'a> {
     fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let tok = match self.ch {
-            b'=' => Token::ASSIGN,
+            b'=' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::EQ
+                } else {
+                    Token::ASSIGN
+                }
+            }
+            b'+' => Token::PLUS,
+            b'-' => Token::MINUS,
+            b'!' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::NOTEQ
+                } else {
+                    Token::BANG
+                }
+            }
+            b'/' => Token::SLASH,
+            b'*' => Token::ASTERISK,
+            b'<' => Token::LT,
+            b'>' => Token::GT,
             b';' => Token::SEMICOLON,
             b'(' => Token::LPAREN,
             b')' => Token::RPAREN,
             b',' => Token::COMMA,
-            b'+' => Token::PLUS,
             b'{' => Token::LBRACE,
             b'}' => Token::RBRACE,
             0 => Token::EOF,
@@ -84,6 +104,11 @@ impl<'a> Lexer<'a> {
         match ident {
             "let" => Token::LET,
             "fn" => Token::FUNCTION,
+            "true" => Token::BOOL(true),
+            "false" => Token::BOOL(false),
+            "if" => Token::IF,
+            "else" => Token::ELSE,
+            "return" => Token::RETURN,
             ident => Token::IDENT(ident.to_string()),
         }
     }
@@ -94,6 +119,14 @@ impl<'a> Lexer<'a> {
                 b' ' | b'\t' | b'\n' | b'\r' => self.read_char(),
                 _ => break,
             }
+        }
+    }
+
+    fn peek_char(&self) -> u8 {
+        if self.read_position >= self.input.len() {
+            0
+        } else {
+            self.input.as_bytes()[self.read_position]
         }
     }
 }
@@ -112,6 +145,17 @@ mod tests {
         };
 
         let result = add(five, ten);
+        !-/*5;
+        5 < 10 > 5;
+
+        if (5 < 10) {
+          return true;
+        } else {
+          return false;
+        }
+
+        10 == 10;
+        10 != 9;
         "#;
         let tests = vec![
             Token::LET,
@@ -149,6 +193,43 @@ mod tests {
             Token::COMMA,
             Token::IDENT("ten".to_string()),
             Token::RPAREN,
+            Token::SEMICOLON,
+            Token::BANG,
+            Token::MINUS,
+            Token::SLASH,
+            Token::ASTERISK,
+            Token::INT(5),
+            Token::SEMICOLON,
+            Token::INT(5),
+            Token::LT,
+            Token::INT(10),
+            Token::GT,
+            Token::INT(5),
+            Token::SEMICOLON,
+            Token::IF,
+            Token::LPAREN,
+            Token::INT(5),
+            Token::LT,
+            Token::INT(10),
+            Token::RPAREN,
+            Token::LBRACE,
+            Token::RETURN,
+            Token::BOOL(true),
+            Token::SEMICOLON,
+            Token::RBRACE,
+            Token::ELSE,
+            Token::LBRACE,
+            Token::RETURN,
+            Token::BOOL(false),
+            Token::SEMICOLON,
+            Token::RBRACE,
+            Token::INT(10),
+            Token::EQ,
+            Token::INT(10),
+            Token::SEMICOLON,
+            Token::INT(10),
+            Token::NOTEQ,
+            Token::INT(9),
             Token::SEMICOLON,
             Token::EOF,
         ];
