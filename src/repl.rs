@@ -7,16 +7,10 @@ pub fn start() {
 
     loop {
         print!(">> ");
-        match io::stdin().read_line(&mut input) {
-            Ok(n) => {
-                println!("{} bytes read", n);
-                println!("{}", input);
-            }
-            Err(error) => {
-                println!("error: {}", error);
-                return;
-            }
-        }
+        io::Write::flush(&mut io::stdout()).expect("Flush failed");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
 
         let mut lexer = Lexer::new(&mut input);
 
