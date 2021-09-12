@@ -5,16 +5,16 @@ pub struct Program {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Let(Ident, Expression)
+    Let(Identifier, Expression)
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Ident(pub String);
+pub struct Identifier(pub String);
 
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    Ident(Ident),
+    Ident(Identifier),
     Literal(Literal)
 }
 
