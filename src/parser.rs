@@ -12,8 +12,8 @@ impl <'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Parser {
         let mut parser = Parser{
             lexer,
-            current_token: Token::ILLEGAL,
-            peek_token: Token::ILLEGAL,
+            current_token: Token::Illegal,
+            peek_token: Token::Illegal,
         };
 
         parser.next_token();
@@ -28,26 +28,26 @@ impl <'a> Parser<'a> {
     }
 
     fn expect_peek(&mut self, token: Token) -> Result<(), String> {
-        match self.peek_token_is(token) {
+        match self.peek_token_is(&token) {
             true => {
                 self.next_token();
                 Ok(())
             },
-            false => return Err("err".to_string())
+            false => return Err(format!("Expect token {0}. But received {1}", token, self.peek_token))
         }
     }
-
-    fn peek_token_is(&mut self, t: Token)-> bool {
-        self.peek_token == t
+    
+    fn peek_token_is(&mut self, t: &Token)-> bool {
+        self.peek_token == *t
     }
 
     pub fn parse_program(&mut self) -> ast::Program {
-        let mut program = ast::Program { statements: vec![] };
+        let mut program = ast::Program::default();
 
         while self.current_token != Token::EOF {
             match self.parse_statement() {
                 Ok(statement) => program.statements.push(statement),
-                Err(_msg) => {}
+                Err(msg) => println!("{}", msg)
             }
             self.next_token()
         }
@@ -57,39 +57,37 @@ impl <'a> Parser<'a> {
 
     fn parse_statement(&mut self) -> Result<ast::Statement, String> {
         match self.current_token {
-            Token::LET => self.parse_let_statement(),
+            Token::Let => self.parse_let_statement(),
             _ => Err("err".to_string())
         }
     }
 
     fn parse_let_statement(&mut self) ->  Result<ast::Statement, String> {
-        self.expect_peek(Token::IDENT("_".to_string()))?;
+        let name = self.parse_indent()?;
 
-        let name = match self.parse_indent() {
-            Some(name) => name,
-            _ => return Err("err".to_string())
-        };
+        self.expect_peek(Token::Assign)?;
 
         self.next_token();
         let literal = match self.current_token {
-            Token::INT(l) =>  ast::Expression::Literal(ast::Literal::Int(l)),
-            _ => return Err("err".to_string())
+            Token::Int(l) =>  ast::Expression::Literal(ast::Literal::Int(l)),
+            _ => return Err(format!("Invalid token {}", self.current_token))
         };
 
-        self.expect_peek(Token::ASSIGN)?;
-
-        while !self.peek_token_is(Token::SEMICOLON) {
+        while !self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
         Ok(ast::Statement::Let(name, literal))
     }
 
-    fn parse_indent(&mut self) -> Option<ast::Identifier> {
-        match &self.current_token {
-            Token::IDENT(i) => Some(ast::Identifier(i.to_string())),
-            _ => None
-        }
+    fn parse_indent(&mut self) -> Result<ast::Identifier, String> {
+        let ident = match &self.peek_token {
+            Token::Ident(i) => ast::Identifier(i.to_string()),
+            _ => return Err(format!("Invalid identifier {}", self.peek_token))
+        };
+
+        self.next_token();
+        Ok(ident)
     }
 }
 
