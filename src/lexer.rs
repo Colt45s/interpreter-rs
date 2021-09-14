@@ -37,31 +37,31 @@ impl<'a> Lexer<'a> {
             b'=' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
-                    Token::EQ
+                    Token::Eq
                 } else {
-                    Token::ASSIGN
+                    Token::Assign
                 }
             }
-            b'+' => Token::PLUS,
-            b'-' => Token::MINUS,
+            b'+' => Token::Plus,
+            b'-' => Token::Minus,
             b'!' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
-                    Token::NOTEQ
+                    Token::Neq
                 } else {
-                    Token::BANG
+                    Token::Bang
                 }
             }
-            b'/' => Token::SLASH,
-            b'*' => Token::ASTERISK,
-            b'<' => Token::LT,
-            b'>' => Token::GT,
-            b';' => Token::SEMICOLON,
-            b'(' => Token::LPAREN,
-            b')' => Token::RPAREN,
-            b',' => Token::COMMA,
-            b'{' => Token::LBRACE,
-            b'}' => Token::RBRACE,
+            b'/' => Token::Slash,
+            b'*' => Token::Asterisk,
+            b'<' => Token::Lt,
+            b'>' => Token::Gt,
+            b';' => Token::Semicolon,
+            b'(' => Token::Lparen,
+            b')' => Token::Rparen,
+            b',' => Token::Comma,
+            b'{' => Token::Lbrace,
+            b'}' => Token::Rbrace,
             0 => Token::EOF,
             _ => {
                 if self.ch.is_ascii_alphabetic() || self.ch == b'_' {
@@ -69,7 +69,7 @@ impl<'a> Lexer<'a> {
                 } else if self.ch.is_ascii_digit() {
                     return self.read_number();
                 } else {
-                    return Token::ILLEGAL;
+                    return Token::Illegal;
                 }
             }
         };
@@ -97,19 +97,19 @@ impl<'a> Lexer<'a> {
 
         let parsed = self.input[from..self.position].parse::<i32>().unwrap();
 
-        Token::INT(parsed)
+        Token::Int(parsed)
     }
 
     fn lookup_ident(&self, ident: &str) -> Token {
         match ident {
-            "let" => Token::LET,
-            "fn" => Token::FUNCTION,
-            "true" => Token::BOOL(true),
-            "false" => Token::BOOL(false),
-            "if" => Token::IF,
-            "else" => Token::ELSE,
-            "return" => Token::RETURN,
-            ident => Token::IDENT(ident.to_string()),
+            "let" => Token::Let,
+            "fn" => Token::Function,
+            "true" => Token::True,
+            "false" => Token::False,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "return" => Token::Return,
+            ident => Token::Ident(ident.to_string()),
         }
     }
 
@@ -144,7 +144,7 @@ mod tests {
           x + y;
         };
 
-        let result = add(five, ten);
+        let resuLt = add(five, ten);
         !-/*5;
         5 < 10 > 5;
 
@@ -158,79 +158,79 @@ mod tests {
         10 != 9;
         "#;
         let tests = vec![
-            Token::LET,
-            Token::IDENT("five".to_string()),
-            Token::ASSIGN,
-            Token::INT(5),
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("ten".to_string()),
-            Token::ASSIGN,
-            Token::INT(10),
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("add".to_string()),
-            Token::ASSIGN,
-            Token::FUNCTION,
-            Token::LPAREN,
-            Token::IDENT("x".to_string()),
-            Token::COMMA,
-            Token::IDENT("y".to_string()),
-            Token::RPAREN,
-            Token::LBRACE,
-            Token::IDENT("x".to_string()),
-            Token::PLUS,
-            Token::IDENT("y".to_string()),
-            Token::SEMICOLON,
-            Token::RBRACE,
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("result".to_string()),
-            Token::ASSIGN,
-            Token::IDENT("add".to_string()),
-            Token::LPAREN,
-            Token::IDENT("five".to_string()),
-            Token::COMMA,
-            Token::IDENT("ten".to_string()),
-            Token::RPAREN,
-            Token::SEMICOLON,
-            Token::BANG,
-            Token::MINUS,
-            Token::SLASH,
-            Token::ASTERISK,
-            Token::INT(5),
-            Token::SEMICOLON,
-            Token::INT(5),
-            Token::LT,
-            Token::INT(10),
-            Token::GT,
-            Token::INT(5),
-            Token::SEMICOLON,
-            Token::IF,
-            Token::LPAREN,
-            Token::INT(5),
-            Token::LT,
-            Token::INT(10),
-            Token::RPAREN,
-            Token::LBRACE,
-            Token::RETURN,
-            Token::BOOL(true),
-            Token::SEMICOLON,
-            Token::RBRACE,
-            Token::ELSE,
-            Token::LBRACE,
-            Token::RETURN,
-            Token::BOOL(false),
-            Token::SEMICOLON,
-            Token::RBRACE,
-            Token::INT(10),
-            Token::EQ,
-            Token::INT(10),
-            Token::SEMICOLON,
-            Token::INT(10),
-            Token::NOTEQ,
-            Token::INT(9),
-            Token::SEMICOLON,
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("ten".to_string()),
+            Token::Assign,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::Lparen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("resuLt".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::Lparen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::Rparen,
+            Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Gt,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::If,
+            Token::Lparen,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Int(10),
+            Token::Eq,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::Neq,
+            Token::Int(9),
+            Token::Semicolon,
             Token::EOF,
         ];
         let mut lexer = Lexer::new(input);
