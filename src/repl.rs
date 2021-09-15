@@ -1,6 +1,7 @@
 use std::io;
 
-use crate::{lexer::Lexer, token::Token};
+use crate::lexer::Lexer;
+use crate::token::Token;
 
 pub fn start() {
     let mut input = String::new();
