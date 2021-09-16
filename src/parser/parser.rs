@@ -5,7 +5,7 @@ use crate::lexer::token::Token;
 struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
-    peek_token: Token 
+    peek_token: Token
 }
 
 impl <'a> Parser<'a> {
@@ -13,7 +13,7 @@ impl <'a> Parser<'a> {
         let mut parser = Parser{
             lexer,
             current_token: Token::Illegal,
-            peek_token: Token::Illegal,
+            peek_token: Token::Illegal
         };
 
         parser.next_token();
@@ -36,29 +36,35 @@ impl <'a> Parser<'a> {
             false => return Err(format!("Expect token {0}. But received {1}", token, self.peek_token))
         }
     }
-    
+
     fn peek_token_is(&mut self, t: &Token)-> bool {
         self.peek_token == *t
     }
 
-    pub fn parse_program(&mut self) -> ast::Program {
+    pub fn parse_program(&mut self) -> Result<ast::Program, String> {
         let mut program = ast::Program::default();
 
         while self.current_token != Token::EOF {
-            match self.parse_statement() {
-                Ok(statement) => program.statements.push(statement),
-                Err(msg) => println!("{}", msg)
+            let statement = self.parse_statement();
+            match statement {
+                Some(s) => {
+                    program.statements.push(s);
+                },
+                None => {}
             }
-            self.next_token()
+            self.next_token();
         }
 
-        program
+        Ok(program)
     }
 
-    fn parse_statement(&mut self) -> Result<ast::Statement, String> {
+    fn parse_statement(&mut self) -> Option<ast::Statement> {
         match self.current_token {
-            Token::Let => self.parse_let_statement(),
-            _ => Err("err".to_string())
+            Token::Let => {
+                let statement = self.parse_let_statement().unwrap();
+                Some(statement)
+            },
+            _ => return None
         }
     }
 
@@ -93,33 +99,35 @@ impl <'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use core::panic;
+
     use super::*;
+
+    fn parse(input: &str) -> ast::Program {
+        let lexer = Lexer::new(&input);
+        let mut parser = Parser::new(lexer);
+        parser.parse_program().unwrap()
+    }
 
     #[test]
     fn test_let_statement() {
-        let i = "
-		let x = 5;
-		let y = 10;
-		let foobar = 838383;
-		";
+        let inputs = vec![
+            ("let x = 5;", String::from("x"), ast::Literal::Int(5)),
+            ("let y = 10;", String::from("y"), ast::Literal::Int(10)),
+            ("let foobar = 838383;", String::from("foobar"), ast::Literal::Int(838383)),
+        ];
 
-        let input = i.to_string();
-
-        let lexer = Lexer::new(&input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program();
-
-        assert_eq!(
-            vec![
-                ast::Statement::Let(ast::Identifier(String::from("x")), ast::Expression::Literal(ast::Literal::Int(5))),
-                ast::Statement::Let(ast::Identifier(String::from("y")), ast::Expression::Literal(ast::Literal::Int(10))),
-                ast::Statement::Let(
-                    ast::Identifier(String::from("foobar")),
-                    ast::Expression::Literal(ast::Literal::Int(838383)),
-                ),
-            ],
-            program.statements,
-        );
+        for (input, expect_ident_value, expect_literal_value) in inputs {
+            let program = parse(input);
+            assert!(program.statements.len() > 0);
+            let target = program.statements.get(0);
+            match target {
+                Some(ast::Statement::Let(ident, exp)) => {
+                    assert_eq!(*ident, ast::Identifier(expect_ident_value));
+                    assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));      
+                },
+                None => panic!(),
+            }
+        }
     }
 }
