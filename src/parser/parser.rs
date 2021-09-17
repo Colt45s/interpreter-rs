@@ -126,6 +126,7 @@ mod tests {
                     assert_eq!(*ident, ast::Identifier(expect_ident_value));
                     assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));      
                 },
+                Some(_) => panic!(),
                 None => panic!(),
             }
         }
