@@ -64,6 +64,10 @@ impl <'a> Parser<'a> {
                 let statement = self.parse_let_statement().unwrap();
                 Some(statement)
             },
+            Token::Return => {
+                let statement = self.parse_return_statement().unwrap();
+                Some(statement)
+            },
             _ => return None
         }
     }
@@ -84,6 +88,20 @@ impl <'a> Parser<'a> {
         }
 
         Ok(ast::Statement::Let(name, literal))
+    }
+
+    fn parse_return_statement(&mut self) ->  Result<ast::Statement, String> {
+        self.next_token();
+        let literal = match self.current_token {
+            Token::Int(l) =>  ast::Expression::Literal(ast::Literal::Int(l)),
+            _ => return Err(format!("Invalid token {}", self.current_token))
+        };
+
+        while !self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(ast::Statement::Return(literal))
     }
 
     fn parse_indent(&mut self) -> Result<ast::Identifier, String> {
