@@ -121,13 +121,31 @@ mod tests {
             let program = parse(input);
             assert!(program.statements.len() > 0);
             let target = program.statements.get(0);
-            match target {
-                Some(ast::Statement::Let(ident, exp)) => {
-                    assert_eq!(*ident, ast::Identifier(expect_ident_value));
-                    assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));      
-                },
-                Some(_) => panic!(),
-                None => panic!(),
+            if let Some(ast::Statement::Let(ident, exp)) = target  {
+                assert_eq!(*ident, ast::Identifier(expect_ident_value));
+                assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));
+            } else {
+                panic!();
+            }
+        }
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let inputs = vec![
+            ("return 5;", ast::Literal::Int(5)),
+            ("return 10;", ast::Literal::Int(10)),
+            ("return 993322;", ast::Literal::Int(993322)),
+        ];
+
+        for (input, expect_literal_value) in inputs {
+            let program = parse(input);
+            assert!(program.statements.len() > 0);
+            let target = program.statements.get(0);
+            if let Some(ast::Statement::Return(exp)) = target  {
+                assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));
+            } else {
+                panic!();
             }
         }
     }
