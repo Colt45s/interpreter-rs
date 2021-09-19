@@ -6,7 +6,8 @@ pub struct Program {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Let(Identifier, Expression),
-    Return(Expression)
+    Return(Expression),
+    Expr(Expression)
 }
 
 #[derive(Debug, PartialEq, Clone)]
