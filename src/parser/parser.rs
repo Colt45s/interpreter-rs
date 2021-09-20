@@ -1,44 +1,44 @@
 use super::ast;
 use crate::lexer::lexer::Lexer;
 use crate::lexer::token::Token;
-use anyhow::Result;
 use thiserror::Error;
 
 enum Priority {
     Lowest,
-    Equals,       // ==
-    LessGreater,  // > or <
-    Sum,          // +
-    Product,      // *
-    Prefix,       // -X or !X
-    Call          // myFunction(X)
+    Equals,      // ==
+    LessGreater, // > or <
+    Sum,         // +
+    Product,     // *
+    Prefix,      // -X or !X
+    Call,        // myFunction(X)
 }
 
 struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
     peek_token: Token,
-    errors: ParserErrors
+    errors: Vec<ParserError>,
 }
 
 #[derive(Error, Debug)]
 pub enum ParserError {
-    #[error("invalid token (expected {expected:?}, found {found:?})")]
-    InvalidToken {
-        expected: Token,
-        found: Token,
-    },
+    #[error("expect peek token (expected {expected:?}, found {found:?})")]
+    ExpectPeek { expected: Token, found: Token },
+    #[error("expect identifier token. {0}")]
+    ExpectIdentifier(String),
+    #[error("expect expression token. {0}")]
+    ExpectExpression(String),
 }
 
-pub struct ParserErrors(Vec<ParserError>);
+type Result<T> = std::result::Result<T, ParserError>;
 
-impl <'a> Parser<'a> {
+impl<'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Parser {
-        let mut parser = Parser{
+        let mut parser = Parser {
             lexer,
             current_token: Token::Illegal,
             peek_token: Token::Illegal,
-            errors: ParserErrors(vec![])
+            errors: vec![],
         };
 
         parser.next_token();
@@ -48,22 +48,34 @@ impl <'a> Parser<'a> {
     }
 
     fn next_token(&mut self) {
-          self.current_token = self.peek_token.clone();
-          self.peek_token = self.lexer.next_token()  
+        self.current_token = self.peek_token.clone();
+        self.peek_token = self.lexer.next_token()
     }
 
     fn expect_peek(&mut self, token: Token) -> Result<()> {
-        match self.peek_token_is(&token) {
-            true => {
-                self.next_token();
-                Ok(())
-            },
-            false => return Err(anyhow::anyhow!(format!("Expect token {0}. But received {1}", token, self.peek_token)))
+        if self.peek_token_is(&token) {
+            self.next_token();
+            Ok(())
+        } else {
+            Err(ParserError::ExpectPeek {
+                expected: token,
+                found: self.peek_token.clone(),
+            })
         }
     }
 
-    fn peek_token_is(&mut self, t: &Token)-> bool {
-        self.peek_token == *t
+    fn peek_token_is(&mut self, t: &Token) -> bool {
+        match t {
+            Token::Ident(_) => match self.peek_token {
+                Token::Ident(_) => true,
+                _ => false,
+            },
+            Token::Int(_) => match self.peek_token {
+                Token::Int(_) => true,
+                _ => false,
+            },
+            t => self.peek_token == *t,
+        }
     }
 
     pub fn parse_program(&mut self) -> Result<ast::Program> {
@@ -71,9 +83,15 @@ impl <'a> Parser<'a> {
 
         while self.current_token != Token::EOF {
             if let Ok(statement) = self.parse_statement() {
-                program.statements.push(statement);                
+                program.statements.push(statement);
             }
 
+            match self.parse_statement() {
+                Ok(statement) => program.statements.push(statement),
+                Err(e) => {
+                    self.errors.push(e);
+                }
+            }
             self.next_token();
         }
 
@@ -84,19 +102,21 @@ impl <'a> Parser<'a> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
-            _ => self.parse_expression_statement()
+            _ => self.parse_expression_statement(),
         }
     }
 
-    fn parse_let_statement(&mut self) ->  Result<ast::Statement> {
-        let name = self.parse_indent()?;
+    fn parse_let_statement(&mut self) -> Result<ast::Statement> {
+        self.expect_peek(Token::Ident("_".to_string()))?;
+
+        let name = self.parse_identifier()?;
 
         self.expect_peek(Token::Assign)?;
 
         self.next_token();
-        let literal = match self.current_token {
-            Token::Int(l) =>  ast::Expression::Literal(ast::Literal::Int(l)),
-            _ => return Err(anyhow::anyhow!(format!("Invalid token {}", self.current_token)))
+        let literal = match &self.current_token {
+            Token::Int(l) => ast::Expression::Literal(ast::Literal::Int(*l)),
+            t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
 
         while !self.peek_token_is(&Token::Semicolon) {
@@ -106,11 +126,11 @@ impl <'a> Parser<'a> {
         Ok(ast::Statement::Let(name, literal))
     }
 
-    fn parse_return_statement(&mut self) ->  Result<ast::Statement> {
+    fn parse_return_statement(&mut self) -> Result<ast::Statement> {
         self.next_token();
-        let literal = match self.current_token {
-            Token::Int(l) =>  ast::Expression::Literal(ast::Literal::Int(l)),
-            _ => return Err(anyhow::anyhow!(format!("Invalid token {}", self.current_token)))
+        let literal = match &self.current_token {
+            Token::Int(l) => ast::Expression::Literal(ast::Literal::Int(*l)),
+            t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
 
         while !self.peek_token_is(&Token::Semicolon) {
@@ -118,16 +138,6 @@ impl <'a> Parser<'a> {
         }
 
         Ok(ast::Statement::Return(literal))
-    }
-
-    fn parse_indent(&mut self) -> Result<ast::Identifier> {
-        let ident = match &self.peek_token {
-            Token::Ident(i) => ast::Identifier(i.to_string()),
-            _ => return Err(anyhow::anyhow!(format!("Invalid identifier {}", self.peek_token)))
-        };
-
-        self.next_token();
-        Ok(ident)
     }
 
     fn parse_expression_statement(&mut self) -> Result<ast::Statement> {
@@ -141,19 +151,18 @@ impl <'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self, priority: Priority) -> Result<ast::Expression> {
-        let prefix = match self.current_token {
+        let prefix = match &self.current_token {
             Token::Ident(_) => ast::Expression::Ident(self.parse_identifier()?),
-            _ => return Err(anyhow::anyhow!("Not implement"))
+            t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
         Ok(prefix)
     }
 
     fn parse_identifier(&mut self) -> Result<ast::Identifier> {
-        if let Token::Ident(ident) = &self.current_token {
-            Ok(ast::Identifier(ident.clone()))
-        } else {
-            Err(anyhow::anyhow!(format!("Invalid token {}", self.current_token)))
-        }
+        Ok(match &self.current_token {
+            Token::Ident(ident) => ast::Identifier(ident.clone()),
+            t => Err(ParserError::ExpectIdentifier(format!("{}", t)))?,
+        })
     }
 }
 
@@ -174,14 +183,18 @@ mod tests {
         let inputs = vec![
             ("let x = 5;", String::from("x"), ast::Literal::Int(5)),
             ("let y = 10;", String::from("y"), ast::Literal::Int(10)),
-            ("let foobar = 838383;", String::from("foobar"), ast::Literal::Int(838383)),
+            (
+                "let foobar = 838383;",
+                String::from("foobar"),
+                ast::Literal::Int(838383),
+            ),
         ];
 
         for (input, expect_ident_value, expect_literal_value) in inputs {
             let program = parse(input);
             assert!(program.statements.len() > 0);
             let target = program.statements.get(0);
-            if let Some(ast::Statement::Let(ident, exp)) = target  {
+            if let Some(ast::Statement::Let(ident, exp)) = target {
                 assert_eq!(*ident, ast::Identifier(expect_ident_value));
                 assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));
             } else {
@@ -202,7 +215,7 @@ mod tests {
             let program = parse(input);
             assert!(program.statements.len() > 0);
             let target = program.statements.get(0);
-            if let Some(ast::Statement::Return(exp)) = target  {
+            if let Some(ast::Statement::Return(exp)) = target {
                 assert_eq!(*exp, ast::Expression::Literal(expect_literal_value));
             } else {
                 panic!();
