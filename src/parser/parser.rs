@@ -2,6 +2,7 @@ use super::ast;
 use crate::lexer::lexer::Lexer;
 use crate::lexer::token::Token;
 use anyhow::Result;
+use thiserror::Error;
 
 enum Priority {
     Lowest,
@@ -16,15 +17,28 @@ enum Priority {
 struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
-    peek_token: Token
+    peek_token: Token,
+    errors: ParserErrors
 }
+
+#[derive(Error, Debug)]
+pub enum ParserError {
+    #[error("invalid token (expected {expected:?}, found {found:?})")]
+    InvalidToken {
+        expected: Token,
+        found: Token,
+    },
+}
+
+pub struct ParserErrors(Vec<ParserError>);
 
 impl <'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Parser {
         let mut parser = Parser{
             lexer,
             current_token: Token::Illegal,
-            peek_token: Token::Illegal
+            peek_token: Token::Illegal,
+            errors: ParserErrors(vec![])
         };
 
         parser.next_token();
