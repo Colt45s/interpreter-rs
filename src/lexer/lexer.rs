@@ -95,9 +95,9 @@ impl<'a> Lexer<'a> {
             self.read_char();
         }
 
-        let parsed = self.input[from..self.position].parse::<i32>().unwrap();
+        let parsed = &self.input[from..self.position];
 
-        Token::Int(parsed)
+        Token::Int(parsed.to_string())
     }
 
     fn lookup_ident(&self, ident: &str) -> Token {
@@ -161,12 +161,12 @@ mod tests {
             Token::Let,
             Token::Ident("five".to_string()),
             Token::Assign,
-            Token::Int(5),
+            Token::Int("5".to_string()),
             Token::Semicolon,
             Token::Let,
             Token::Ident("ten".to_string()),
             Token::Assign,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Semicolon,
             Token::Let,
             Token::Ident("add".to_string()),
@@ -198,19 +198,19 @@ mod tests {
             Token::Minus,
             Token::Slash,
             Token::Asterisk,
-            Token::Int(5),
+            Token::Int("5".to_string()),
             Token::Semicolon,
-            Token::Int(5),
+            Token::Int("5".to_string()),
             Token::Lt,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Gt,
-            Token::Int(5),
+            Token::Int("5".to_string()),
             Token::Semicolon,
             Token::If,
             Token::Lparen,
-            Token::Int(5),
+            Token::Int("5".to_string()),
             Token::Lt,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Rparen,
             Token::Lbrace,
             Token::Return,
@@ -223,13 +223,13 @@ mod tests {
             Token::False,
             Token::Semicolon,
             Token::Rbrace,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Eq,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Semicolon,
-            Token::Int(10),
+            Token::Int("10".to_string()),
             Token::Neq,
-            Token::Int(9),
+            Token::Int("9".to_string()),
             Token::Semicolon,
             Token::EOF,
         ];
