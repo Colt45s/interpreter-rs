@@ -7,20 +7,14 @@ pub struct Program {
 pub enum Statement {
     Let(Identifier, Expression),
     Return(Expression),
-    Expr(Expression)
+    Expr(Expression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier(pub String);
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Ident(Identifier),
-    Literal(Literal)
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum Literal {
-    Int(i32)
+    IntegerLiteral(i32),
 }
