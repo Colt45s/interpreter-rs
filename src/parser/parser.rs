@@ -28,6 +28,8 @@ pub enum ParserError {
     ExpectExpression(String),
     #[error("unable to parse integer. {0}")]
     UnableToParseInteger(String),
+    #[error("unable to parse operator. {0}")]
+    UnableToParseOperator(String),
 }
 
 type Result<T> = std::result::Result<T, ParserError>;
@@ -149,6 +151,7 @@ impl<'a> Parser<'a> {
         let prefix = match &self.current_token {
             Token::Ident(_) => self.parse_identifier()?,
             Token::Int(_) => self.parse_integer_literal()?,
+            Token::Bang | Token::Minus => self.parse_prefix_expression()?,
             t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
         Ok(prefix.clone())
@@ -178,6 +181,34 @@ impl<'a> Parser<'a> {
         };
         Ok(ast::Expression::IntegerLiteral(parsed))
     }
+
+    fn parse_prefix_expression(&mut self) -> Result<ast::Expression> {
+        let token = self.current_token.clone();
+        let operator = parse_to_operator(&self.current_token)?;
+        self.next_token();
+        let right = Box::new(self.parse_expression(Priority::Prefix)?);
+        Ok(ast::Expression::Prefix {
+            token,
+            operator,
+            right,
+        })
+    }
+}
+
+fn parse_to_operator(token: &Token) -> Result<ast::Operator> {
+    Ok(match token {
+        Token::Assign => ast::Operator::Assign,
+        Token::Plus => ast::Operator::Plus,
+        Token::Minus => ast::Operator::Minus,
+        Token::Bang => ast::Operator::Bang,
+        Token::Asterisk => ast::Operator::Asterisk,
+        Token::Slash => ast::Operator::Slash,
+        Token::Lt => ast::Operator::Lt,
+        Token::Gt => ast::Operator::Gt,
+        Token::Eq => ast::Operator::Eq,
+        Token::Neq => ast::Operator::Neq,
+        _ => return Err(ParserError::UnableToParseOperator(format!("{}", token))),
+    })
 }
 
 #[cfg(test)]
@@ -195,21 +226,9 @@ mod tests {
     #[test]
     fn test_let_statement() {
         let inputs = vec![
-            (
-                "let x = 5;",
-                String::from("x"),
-                ast::Expression::IntegerLiteral(5),
-            ),
-            (
-                "let y = 10;",
-                String::from("y"),
-                ast::Expression::IntegerLiteral(10),
-            ),
-            (
-                "let foobar = 838383;",
-                String::from("foobar"),
-                ast::Expression::IntegerLiteral(838383),
-            ),
+            ("let x = 5;", String::from("x"), 5),
+            ("let y = 10;", String::from("y"), 10),
+            ("let foobar = 838383;", String::from("foobar"), 838383),
         ];
 
         for (input, expect_ident_value, expect_literal_value) in inputs {
@@ -217,8 +236,8 @@ mod tests {
             assert!(program.statements.len() > 0);
             let target = program.statements.get(0);
             if let Some(ast::Statement::Let(ident, exp)) = target {
-                assert_eq!(*ident, ast::Identifier(expect_ident_value));
-                assert_eq!(*exp, expect_literal_value);
+                test_identifier(ident, expect_ident_value);
+                test_integer_literal(exp, expect_literal_value);
             } else {
                 panic!();
             }
@@ -228,9 +247,9 @@ mod tests {
     #[test]
     fn test_return_statement() {
         let inputs = vec![
-            ("return 5;", ast::Expression::IntegerLiteral(5)),
-            ("return 10;", ast::Expression::IntegerLiteral(10)),
-            ("return 993322;", ast::Expression::IntegerLiteral(993322)),
+            ("return 5;", 5),
+            ("return 10;", 10),
+            ("return 993322;", 993322),
         ];
 
         for (input, expect_literal_value) in inputs {
@@ -238,7 +257,7 @@ mod tests {
             assert!(program.statements.len() > 0);
             let target = program.statements.get(0);
             if let Some(ast::Statement::Return(exp)) = target {
-                assert_eq!(*exp, expect_literal_value);
+                test_integer_literal(exp, expect_literal_value);
             } else {
                 panic!();
             }
@@ -252,7 +271,7 @@ mod tests {
         assert!(program.statements.len() > 0);
         let target = program.statements.get(0);
         if let Some(ast::Statement::Expr(ast::Expression::Ident(identifier))) = target {
-            assert_eq!(*identifier, ast::Identifier(input.1));
+            test_identifier(identifier, input.1);
         } else {
             panic!();
         }
@@ -264,10 +283,60 @@ mod tests {
         let program = parse(input.0);
         assert!(program.statements.len() > 0);
         let target = program.statements.get(0);
-        if let Some(ast::Statement::Expr(ast::Expression::IntegerLiteral(int))) = target {
-            assert_eq!(*int, input.1);
+        if let Some(ast::Statement::Expr(expression)) = target {
+            test_integer_literal(&expression, input.1);
         } else {
             panic!();
         }
+    }
+
+    #[test]
+    fn test_parsing_prefix_expressions() {
+        let inputs = vec![("!5;", "!", 5), ("-15;", "-", 15)];
+
+        for (input, prefix, expect_right_value) in inputs {
+            let program = parse(input);
+            assert!(program.statements.len() > 0);
+            let target = program.statements.get(0);
+            if let Some(ast::Statement::Expr(ast::Expression::Prefix {
+                operator, right, ..
+            })) = target
+            {
+                test_operator(operator, prefix);
+                test_integer_literal(&*right, expect_right_value);
+            } else {
+                panic!();
+            }
+        }
+    }
+
+    fn test_identifier(identifier: &ast::Identifier, v: String) {
+        assert_eq!(*identifier, ast::Identifier(v));
+    }
+
+    fn test_integer_literal(il: &ast::Expression, v: i32) {
+        if let ast::Expression::IntegerLiteral(int) = il {
+            assert_eq!(int, &v);
+        } else {
+            panic!();
+        }
+    }
+
+    fn test_operator(operator: &ast::Operator, expect_operator: &str) {
+        assert_eq!(
+            match operator {
+                ast::Operator::Assign => "=",
+                ast::Operator::Plus => "+",
+                ast::Operator::Minus => "-",
+                ast::Operator::Bang => "!",
+                ast::Operator::Asterisk => "*",
+                ast::Operator::Slash => "/",
+                ast::Operator::Lt => "<",
+                ast::Operator::Gt => ">",
+                ast::Operator::Eq => "==",
+                ast::Operator::Neq => "!=",
+            },
+            expect_operator,
+        );
     }
 }
