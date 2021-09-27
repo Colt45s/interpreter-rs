@@ -24,6 +24,12 @@ pub enum Expression {
         operator: Operator,
         right: Box<Expression>,
     },
+    Infix {
+        token: Token,
+        left: Box<Expression>,
+        operator: Operator,
+        right: Box<Expression>,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
