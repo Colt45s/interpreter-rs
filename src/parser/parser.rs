@@ -17,10 +17,14 @@ struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
     peek_token: Token,
-    errors: Vec<ParserError>,
+    errors: ParserErrors,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
+#[error("{}", (.0).iter().map(|e| format!("\x32{}", e)).collect::<Vec<_>>().join("\n"))]
+pub struct ParserErrors(Vec<ParserError>);
+
+#[derive(Error, Debug, Clone)]
 pub enum ParserError {
     #[error("expect token (expected {expected:?}, found {found:?})")]
     ExpectToken { expected: String, found: String },
@@ -32,6 +36,7 @@ pub enum ParserError {
     UnableToParseOperator(String),
 }
 
+type ParserResult<T> = std::result::Result<T, ParserErrors>;
 type Result<T> = std::result::Result<T, ParserError>;
 
 impl<'a> Parser<'a> {
@@ -40,7 +45,7 @@ impl<'a> Parser<'a> {
             lexer,
             current_token: Token::Illegal,
             peek_token: Token::Illegal,
-            errors: vec![],
+            errors: ParserErrors(Vec::new()),
         };
 
         parser.next_token();
@@ -80,21 +85,21 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_program(&mut self) -> Result<ast::Program> {
+    pub fn parse_program(&mut self) -> ParserResult<ast::Program> {
         let mut program = ast::Program::default();
 
         while self.current_token != Token::EOF {
-            if let Ok(statement) = self.parse_statement() {
-                program.statements.push(statement);
-            }
-
             match self.parse_statement() {
                 Ok(statement) => program.statements.push(statement),
                 Err(e) => {
-                    self.errors.push(e);
+                    self.errors.0.push(e);
                 }
             }
             self.next_token();
+        }
+
+        if !self.errors.0.is_empty() {
+            return Err(self.errors.clone());
         }
 
         Ok(program)
@@ -217,10 +222,10 @@ mod tests {
 
     use super::*;
 
-    fn parse(input: &str) -> ast::Program {
+    fn parse(input: &str) -> super::ParserResult<ast::Program> {
         let lexer = Lexer::new(&input);
         let mut parser = Parser::new(lexer);
-        parser.parse_program().unwrap()
+        parser.parse_program()
     }
 
     #[test]
@@ -232,15 +237,19 @@ mod tests {
         ];
 
         for (input, expect_ident_value, expect_literal_value) in inputs {
-            let program = parse(input);
-            assert!(program.statements.len() > 0);
-            let target = program.statements.get(0);
-            if let Some(ast::Statement::Let(ident, exp)) = target {
-                test_identifier(ident, expect_ident_value);
-                test_integer_literal(exp, expect_literal_value);
-            } else {
-                panic!();
-            }
+            match parse(input) {
+                Err(errors) => test_print_errors(errors),
+                Ok(program) => {
+                    assert!(program.statements.len() > 0);
+                    let target = program.statements.get(0);
+                    if let Some(ast::Statement::Let(ident, exp)) = target {
+                        test_identifier(ident, expect_ident_value);
+                        test_integer_literal(exp, expect_literal_value);
+                    } else {
+                        panic!();
+                    }
+                }
+            };
         }
     }
 
@@ -253,41 +262,53 @@ mod tests {
         ];
 
         for (input, expect_literal_value) in inputs {
-            let program = parse(input);
-            assert!(program.statements.len() > 0);
-            let target = program.statements.get(0);
-            if let Some(ast::Statement::Return(exp)) = target {
-                test_integer_literal(exp, expect_literal_value);
-            } else {
-                panic!();
-            }
+            match parse(input) {
+                Err(errors) => test_print_errors(errors),
+                Ok(program) => {
+                    assert!(program.statements.len() > 0);
+                    let target = program.statements.get(0);
+                    if let Some(ast::Statement::Return(exp)) = target {
+                        test_integer_literal(exp, expect_literal_value);
+                    } else {
+                        panic!();
+                    }
+                }
+            };
         }
     }
 
     #[test]
     fn test_identifier_expression() {
         let input = ("foobar;", "foobar".to_string());
-        let program = parse(input.0);
-        assert!(program.statements.len() > 0);
-        let target = program.statements.get(0);
-        if let Some(ast::Statement::Expr(ast::Expression::Ident(identifier))) = target {
-            test_identifier(identifier, input.1);
-        } else {
-            panic!();
-        }
+        match parse(input.0) {
+            Err(errors) => test_print_errors(errors),
+            Ok(program) => {
+                assert!(program.statements.len() > 0);
+                let target = program.statements.get(0);
+                if let Some(ast::Statement::Expr(ast::Expression::Ident(identifier))) = target {
+                    test_identifier(identifier, input.1);
+                } else {
+                    panic!();
+                }
+            }
+        };
     }
 
     #[test]
     fn test_integer_literal_expression() {
         let input = ("5;", 5);
-        let program = parse(input.0);
-        assert!(program.statements.len() > 0);
-        let target = program.statements.get(0);
-        if let Some(ast::Statement::Expr(expression)) = target {
-            test_integer_literal(&expression, input.1);
-        } else {
-            panic!();
-        }
+        match parse(input.0) {
+            Err(errors) => test_print_errors(errors),
+            Ok(program) => {
+                assert!(program.statements.len() > 0);
+                let target = program.statements.get(0);
+                if let Some(ast::Statement::Expr(expression)) = target {
+                    test_integer_literal(&expression, input.1);
+                } else {
+                    panic!();
+                }
+            }
+        };
     }
 
     #[test]
@@ -295,18 +316,61 @@ mod tests {
         let inputs = vec![("!5;", "!", 5), ("-15;", "-", 15)];
 
         for (input, prefix, expect_right_value) in inputs {
-            let program = parse(input);
-            assert!(program.statements.len() > 0);
-            let target = program.statements.get(0);
-            if let Some(ast::Statement::Expr(ast::Expression::Prefix {
-                operator, right, ..
-            })) = target
-            {
-                test_operator(operator, prefix);
-                test_integer_literal(&*right, expect_right_value);
-            } else {
-                panic!();
-            }
+            match parse(input) {
+                Err(errors) => test_print_errors(errors),
+                Ok(program) => {
+                    assert!(program.statements.len() > 0);
+                    let target = program.statements.get(0);
+                    if let Some(ast::Statement::Expr(ast::Expression::Prefix {
+                        operator,
+                        right,
+                        ..
+                    })) = target
+                    {
+                        test_operator(operator, prefix);
+                        test_integer_literal(&*right, expect_right_value);
+                    } else {
+                        panic!();
+                    }
+                }
+            };
+        }
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let inputs = vec![
+            ("5 + 5;", 5, "+", 5),
+            ("5 - 5;", 5, "-", 5),
+            ("5 * 5;", 5, "*", 5),
+            ("5 / 5;", 5, "/", 5),
+            ("5 > 5;", 5, ">", 5),
+            ("5 < 5;", 5, "<", 5),
+            ("5 == 5;", 5, "==", 5),
+            ("5 != 5;", 5, "!=", 5),
+        ];
+
+        for (input, expect_left_value, infix, expect_right_value) in inputs {
+            match parse(input) {
+                Err(errors) => test_print_errors(errors),
+                Ok(program) => {
+                    assert!(program.statements.len() > 0);
+                    let target = program.statements.get(0);
+                    if let Some(ast::Statement::Expr(ast::Expression::Infix {
+                        left,
+                        operator,
+                        right,
+                        ..
+                    })) = target
+                    {
+                        test_integer_literal(&*left, expect_left_value);
+                        test_operator(operator, infix);
+                        test_integer_literal(&*right, expect_right_value);
+                    } else {
+                        panic!();
+                    }
+                }
+            };
         }
     }
 
@@ -338,5 +402,11 @@ mod tests {
             },
             expect_operator,
         );
+    }
+
+    fn test_print_errors(errors: ParserErrors) {
+        errors.0.iter().for_each(|e| {
+            println!("error! {}", e);
+        });
     }
 }
