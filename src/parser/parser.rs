@@ -1,17 +1,8 @@
 use super::ast;
+use super::precedence::Precedence;
 use crate::lexer::lexer::Lexer;
 use crate::lexer::token::Token;
 use thiserror::Error;
-
-enum Priority {
-    Lowest,
-    Equals,      // ==
-    LessGreater, // > or <
-    Sum,         // +
-    Product,     // *
-    Prefix,      // -X or !X
-    Call,        // myFunction(X)
-}
 
 struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -124,7 +115,7 @@ impl<'a> Parser<'a> {
         self.expect_peek(Token::Assign)?;
 
         self.next_token();
-        let literal = self.parse_expression(Priority::Lowest)?;
+        let literal = self.parse_expression(Precedence::Lowest)?;
         while !self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
@@ -134,7 +125,7 @@ impl<'a> Parser<'a> {
 
     fn parse_return_statement(&mut self) -> Result<ast::Statement> {
         self.next_token();
-        let literal = self.parse_expression(Priority::Lowest)?;
+        let literal = self.parse_expression(Precedence::Lowest)?;
         while !self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
@@ -143,7 +134,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_statement(&mut self) -> Result<ast::Statement> {
-        let expr = self.parse_expression(Priority::Lowest)?;
+        let expr = self.parse_expression(Precedence::Lowest)?;
 
         if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
@@ -152,7 +143,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Statement::Expr(expr))
     }
 
-    fn parse_expression(&mut self, priority: Priority) -> Result<ast::Expression> {
+    fn parse_expression(&mut self, priority: Precedence) -> Result<ast::Expression> {
         let prefix = match &self.current_token {
             Token::Ident(_) => self.parse_identifier()?,
             Token::Int(_) => self.parse_integer_literal()?,
@@ -191,7 +182,7 @@ impl<'a> Parser<'a> {
         let token = self.current_token.clone();
         let operator = parse_to_operator(&self.current_token)?;
         self.next_token();
-        let right = Box::new(self.parse_expression(Priority::Prefix)?);
+        let right = Box::new(self.parse_expression(Precedence::Prefix)?);
         Ok(ast::Expression::Prefix {
             token,
             operator,
