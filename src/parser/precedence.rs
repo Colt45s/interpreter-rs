@@ -1,6 +1,6 @@
 use crate::lexer::token::Token;
 
-#[derive(Debug)]
+#[derive(PartialOrd, PartialEq, Debug)]
 pub enum Precedence {
     Lowest,
     Equals,      // ==
@@ -11,8 +11,8 @@ pub enum Precedence {
     Call,        // myFunction(X)
 }
 
-impl From<Token> for Precedence {
-    fn from(token: Token) -> Self {
+impl From<&Token> for Precedence {
+    fn from(token: &Token) -> Self {
         match token {
             Token::Eq => Precedence::Equals,
             Token::Neq => Precedence::Equals,
