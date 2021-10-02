@@ -143,14 +143,33 @@ impl<'a> Parser<'a> {
         Ok(ast::Statement::Expr(expr))
     }
 
-    fn parse_expression(&mut self, priority: Precedence) -> Result<ast::Expression> {
-        let prefix = match &self.current_token {
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<ast::Expression> {
+        let mut left = match &self.current_token {
             Token::Ident(_) => self.parse_identifier()?,
             Token::Int(_) => self.parse_integer_literal()?,
             Token::Bang | Token::Minus => self.parse_prefix_expression()?,
             t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
-        Ok(prefix.clone())
+
+        while !self.peek_token_is(&Token::Semicolon)
+            && precedence < Precedence::from(&self.peek_token)
+        {
+            match &self.peek_token {
+                Token::Plus
+                | Token::Minus
+                | Token::Slash
+                | Token::Asterisk
+                | Token::Eq
+                | Token::Neq
+                | Token::Lt
+                | Token::Gt => {
+                    self.next_token();
+                    left = self.parse_infix_expression(Box::new(left))?;
+                }
+                _ => break,
+            };
+        }
+        Ok(left)
     }
 
     fn parse_identifier(&mut self) -> Result<ast::Expression> {
@@ -186,6 +205,20 @@ impl<'a> Parser<'a> {
         Ok(ast::Expression::Prefix {
             token,
             operator,
+            right,
+        })
+    }
+
+    fn parse_infix_expression(&mut self, left: Box<ast::Expression>) -> Result<ast::Expression> {
+        let token = self.current_token.clone();
+        let operator = parse_to_operator(&self.current_token)?;
+        let precedence = Precedence::from(&self.current_token);
+        self.next_token();
+        let right = Box::new(self.parse_expression(precedence)?);
+        Ok(ast::Expression::Infix {
+            token,
+            operator,
+            left,
             right,
         })
     }
