@@ -441,21 +441,7 @@ mod tests {
     }
 
     fn test_operator(operator: &ast::Operator, expect_operator: &str) {
-        assert_eq!(
-            match operator {
-                ast::Operator::Assign => "=",
-                ast::Operator::Plus => "+",
-                ast::Operator::Minus => "-",
-                ast::Operator::Bang => "!",
-                ast::Operator::Asterisk => "*",
-                ast::Operator::Slash => "/",
-                ast::Operator::Lt => "<",
-                ast::Operator::Gt => ">",
-                ast::Operator::Eq => "==",
-                ast::Operator::Neq => "!=",
-            },
-            expect_operator,
-        );
+        assert_eq!(operator.to_string(), expect_operator,);
     }
 
     fn test_print_errors(errors: ParserErrors) {
