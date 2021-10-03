@@ -398,6 +398,36 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_operator_precedence_parsing() {
+        let inputs = vec![
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+        ];
+
+        inputs
+            .iter()
+            .for_each(|(input, expected)| match parse(input) {
+                Err(errors) => test_print_errors(errors),
+                Ok(program) => {
+                    assert_eq!(&format!("{}", program), expected);
+                }
+            });
+    }
+
     fn test_identifier(identifier: &ast::Identifier, v: String) {
         assert_eq!(*identifier, ast::Identifier(v));
     }
