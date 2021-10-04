@@ -1,6 +1,6 @@
 use std::str;
 
-use super::token::Token;
+use crate::lexer::Token;
 
 pub struct Lexer<'a> {
     input: &'a str,

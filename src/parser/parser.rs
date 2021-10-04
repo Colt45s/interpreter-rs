@@ -1,7 +1,7 @@
 use super::ast;
 use super::precedence::Precedence;
-use crate::lexer::lexer::Lexer;
-use crate::lexer::token::Token;
+use crate::lexer::Lexer;
+use crate::lexer::Token;
 use thiserror::Error;
 
 struct Parser<'a> {

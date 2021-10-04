@@ -1,4 +1,4 @@
-use crate::lexer::token::Token;
+use crate::lexer::Token;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Default)]
