@@ -53,6 +53,7 @@ impl fmt::Display for Identifier {
 pub enum Expression {
     Ident(Identifier),
     IntegerLiteral(i32),
+    BooleanLiteral(bool),
     Prefix {
         token: Token,
         operator: Operator,
@@ -71,6 +72,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Ident(indentifier) => write!(f, "{}", indentifier),
             Expression::IntegerLiteral(val) => write!(f, "{}", val),
+            Expression::BooleanLiteral(bool) => write!(f, "{}", bool),
             Expression::Prefix {
                 operator, right, ..
             } => write!(f, "({}{})", operator, right),

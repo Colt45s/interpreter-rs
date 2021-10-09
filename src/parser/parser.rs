@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
         let mut left = match &self.current_token {
             Token::Ident(_) => self.parse_identifier()?,
             Token::Int(_) => self.parse_integer_literal()?,
+            Token::True | Token::False => self.parse_boolean_literal()?,
             Token::Bang | Token::Minus => self.parse_prefix_expression()?,
             t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
@@ -195,6 +196,17 @@ impl<'a> Parser<'a> {
             })?,
         };
         Ok(ast::Expression::IntegerLiteral(parsed))
+    }
+
+    fn parse_boolean_literal(&mut self) -> Result<ast::Expression> {
+        match &self.current_token {
+            Token::True => Ok(ast::Expression::BooleanLiteral(true)),
+            Token::False => Ok(ast::Expression::BooleanLiteral(false)),
+            t => Err(ParserError::ExpectToken {
+                expected: "Boolean".to_string(),
+                found: format!("{}", t),
+            })?,
+        }
     }
 
     fn parse_prefix_expression(&mut self) -> Result<ast::Expression> {
@@ -246,6 +258,13 @@ mod tests {
 
     use super::*;
 
+    enum V<'a> {
+        Bool(bool),
+        Ident(&'a str),
+        Int(i32),
+        Infix(Box<V<'a>>, &'a str, Box<V<'a>>),
+    }
+
     fn parse(input: &str) -> super::ParserResult<ast::Program> {
         let lexer = Lexer::new(&input);
         let mut parser = Parser::new(lexer);
@@ -255,9 +274,13 @@ mod tests {
     #[test]
     fn test_let_statement() {
         let inputs = vec![
-            ("let x = 5;", String::from("x"), 5),
-            ("let y = 10;", String::from("y"), 10),
-            ("let foobar = 838383;", String::from("foobar"), 838383),
+            ("let x = 5;", String::from("x"), V::Int(5)),
+            ("let y = 10;", String::from("y"), V::Int(10)),
+            (
+                "let foobar = 838383;",
+                String::from("foobar"),
+                V::Int(838383),
+            ),
         ];
 
         for (input, expect_ident_value, expect_literal_value) in inputs {
@@ -268,7 +291,7 @@ mod tests {
                     let target = program.statements.get(0);
                     if let Some(ast::Statement::Let(ident, exp)) = target {
                         test_identifier(ident, expect_ident_value);
-                        test_integer_literal(exp, expect_literal_value);
+                        test_integer_literal(exp, &expect_literal_value);
                     } else {
                         panic!();
                     }
@@ -280,9 +303,9 @@ mod tests {
     #[test]
     fn test_return_statement() {
         let inputs = vec![
-            ("return 5;", 5),
-            ("return 10;", 10),
-            ("return 993322;", 993322),
+            ("return 5;", V::Int(5)),
+            ("return 10;", V::Int(10)),
+            ("return 993322;", V::Int(993322)),
         ];
 
         for (input, expect_literal_value) in inputs {
@@ -292,7 +315,7 @@ mod tests {
                     assert!(program.statements.len() > 0);
                     let target = program.statements.get(0);
                     if let Some(ast::Statement::Return(exp)) = target {
-                        test_integer_literal(exp, expect_literal_value);
+                        test_integer_literal(exp, &expect_literal_value);
                     } else {
                         panic!();
                     }
@@ -320,14 +343,14 @@ mod tests {
 
     #[test]
     fn test_integer_literal_expression() {
-        let input = ("5;", 5);
+        let input = ("5;", V::Int(5));
         match parse(input.0) {
             Err(errors) => test_print_errors(errors),
             Ok(program) => {
                 assert!(program.statements.len() > 0);
                 let target = program.statements.get(0);
                 if let Some(ast::Statement::Expr(expression)) = target {
-                    test_integer_literal(&expression, input.1);
+                    test_integer_literal(&expression, &input.1);
                 } else {
                     panic!();
                 }
@@ -337,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_parsing_prefix_expressions() {
-        let inputs = vec![("!5;", "!", 5), ("-15;", "-", 15)];
+        let inputs = vec![("!5;", "!", V::Int(5)), ("-15;", "-", V::Int(15))];
 
         for (input, prefix, expect_right_value) in inputs {
             match parse(input) {
@@ -352,7 +375,7 @@ mod tests {
                     })) = target
                     {
                         test_operator(operator, prefix);
-                        test_integer_literal(&*right, expect_right_value);
+                        test_integer_literal(&*right, &expect_right_value);
                     } else {
                         panic!();
                     }
@@ -364,14 +387,17 @@ mod tests {
     #[test]
     fn test_parsing_infix_expressions() {
         let inputs = vec![
-            ("5 + 5;", 5, "+", 5),
-            ("5 - 5;", 5, "-", 5),
-            ("5 * 5;", 5, "*", 5),
-            ("5 / 5;", 5, "/", 5),
-            ("5 > 5;", 5, ">", 5),
-            ("5 < 5;", 5, "<", 5),
-            ("5 == 5;", 5, "==", 5),
-            ("5 != 5;", 5, "!=", 5),
+            ("5 + 5;", V::Int(5), "+", V::Int(5)),
+            ("5 - 5;", V::Int(5), "-", V::Int(5)),
+            ("5 * 5;", V::Int(5), "*", V::Int(5)),
+            ("5 / 5;", V::Int(5), "/", V::Int(5)),
+            ("5 > 5;", V::Int(5), ">", V::Int(5)),
+            ("5 < 5;", V::Int(5), "<", V::Int(5)),
+            ("5 == 5;", V::Int(5), "==", V::Int(5)),
+            ("5 != 5;", V::Int(5), "!=", V::Int(5)),
+            ("true == true", V::Bool(true), "==", V::Bool(true)),
+            ("true != false", V::Bool(true), "!=", V::Bool(false)),
+            ("false == false", V::Bool(false), "==", V::Bool(false)),
         ];
 
         for (input, expect_left_value, infix, expect_right_value) in inputs {
@@ -380,18 +406,8 @@ mod tests {
                 Ok(program) => {
                     assert!(program.statements.len() > 0);
                     let target = program.statements.get(0);
-                    if let Some(ast::Statement::Expr(ast::Expression::Infix {
-                        left,
-                        operator,
-                        right,
-                        ..
-                    })) = target
-                    {
-                        test_integer_literal(&*left, expect_left_value);
-                        test_operator(operator, infix);
-                        test_integer_literal(&*right, expect_right_value);
-                    } else {
-                        panic!();
+                    if let Some(ast::Statement::Expr(expr)) = target {
+                        test_infix_expression(expr, &expect_left_value, infix, &expect_right_value);
                     }
                 }
             };
@@ -416,6 +432,10 @@ mod tests {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
         ];
 
         inputs
@@ -432,21 +452,50 @@ mod tests {
         assert_eq!(*identifier, ast::Identifier(v));
     }
 
-    fn test_integer_literal(il: &ast::Expression, v: i32) {
-        if let ast::Expression::IntegerLiteral(int) = il {
-            assert_eq!(int, &v);
-        } else {
-            panic!();
-        }
+    fn test_integer_literal(il: &ast::Expression, v: &V) {
+        test_expression(il, v)
     }
 
     fn test_operator(operator: &ast::Operator, expect_operator: &str) {
-        assert_eq!(operator.to_string(), expect_operator,);
+        assert_eq!(operator.to_string(), expect_operator);
     }
 
     fn test_print_errors(errors: ParserErrors) {
         errors.0.iter().for_each(|e| {
             println!("error! {}", e);
         });
+    }
+
+    fn test_infix_expression(
+        expr: &ast::Expression,
+        expect_left_value: &V,
+        infix: &str,
+        expect_right_value: &V,
+    ) {
+        match expr {
+            ast::Expression::Infix {
+                left,
+                operator,
+                right,
+                ..
+            } => {
+                test_integer_literal(&*left, expect_left_value);
+                test_operator(operator, infix);
+                test_integer_literal(&*right, expect_right_value);
+            }
+            _ => panic!(),
+        }
+    }
+
+    fn test_expression(expr: &ast::Expression, v: &V) {
+        match v {
+            V::Bool(v) => assert_eq!(*expr, ast::Expression::BooleanLiteral(*v)),
+            V::Ident(v) => assert_eq!(
+                *expr,
+                ast::Expression::Ident(ast::Identifier(v.to_string()))
+            ),
+            V::Int(v) => assert_eq!(*expr, ast::Expression::IntegerLiteral(*v)),
+            V::Infix(left, infix, right) => test_infix_expression(expr, left, infix, right),
+        }
     }
 }
