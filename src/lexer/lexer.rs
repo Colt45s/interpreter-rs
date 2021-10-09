@@ -69,7 +69,7 @@ impl<'a> Lexer<'a> {
                 } else if self.ch.is_ascii_digit() {
                     return self.read_number();
                 } else {
-                    return Token::Illegal;
+                    Token::Illegal
                 }
             }
         };

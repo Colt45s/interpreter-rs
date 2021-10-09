@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
 
         self.next_token();
         let literal = self.parse_expression(Precedence::Lowest)?;
-        while !self.peek_token_is(&Token::Semicolon) {
+        while self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
     fn parse_return_statement(&mut self) -> Result<ast::Statement> {
         self.next_token();
         let literal = self.parse_expression(Precedence::Lowest)?;
-        while !self.peek_token_is(&Token::Semicolon) {
+        while self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
@@ -292,8 +292,6 @@ mod tests {
                     if let Some(ast::Statement::Let(ident, exp)) = target {
                         test_identifier(ident, expect_ident_value);
                         test_integer_literal(exp, &expect_literal_value);
-                    } else {
-                        panic!();
                     }
                 }
             };
@@ -315,9 +313,7 @@ mod tests {
                     assert!(program.statements.len() > 0);
                     let target = program.statements.get(0);
                     if let Some(ast::Statement::Return(exp)) = target {
-                        test_integer_literal(exp, &expect_literal_value);
-                    } else {
-                        panic!();
+                        test_expression(exp, &expect_literal_value);
                     }
                 }
             };
@@ -334,8 +330,6 @@ mod tests {
                 let target = program.statements.get(0);
                 if let Some(ast::Statement::Expr(ast::Expression::Ident(identifier))) = target {
                     test_identifier(identifier, input.1);
-                } else {
-                    panic!();
                 }
             }
         };
@@ -351,8 +345,6 @@ mod tests {
                 let target = program.statements.get(0);
                 if let Some(ast::Statement::Expr(expression)) = target {
                     test_integer_literal(&expression, &input.1);
-                } else {
-                    panic!();
                 }
             }
         };
@@ -376,8 +368,6 @@ mod tests {
                     {
                         test_operator(operator, prefix);
                         test_integer_literal(&*right, &expect_right_value);
-                    } else {
-                        panic!();
                     }
                 }
             };
@@ -436,6 +426,11 @@ mod tests {
             ("false", "false"),
             ("3 > 5 == false", "((3 > 5) == false)"),
             ("3 < 5 == true", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
         ];
 
         inputs
@@ -464,6 +459,7 @@ mod tests {
         errors.0.iter().for_each(|e| {
             println!("error! {}", e);
         });
+        panic!();
     }
 
     fn test_infix_expression(
