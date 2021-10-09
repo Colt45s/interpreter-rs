@@ -149,6 +149,7 @@ impl<'a> Parser<'a> {
             Token::Int(_) => self.parse_integer_literal()?,
             Token::True | Token::False => self.parse_boolean_literal()?,
             Token::Bang | Token::Minus => self.parse_prefix_expression()?,
+            Token::Lparen => self.parse_group_expression()?,
             t => return Err(ParserError::ExpectExpression(format!("{}", t))),
         };
 
@@ -233,6 +234,13 @@ impl<'a> Parser<'a> {
             left,
             right,
         })
+    }
+
+    fn parse_group_expression(&mut self) -> Result<ast::Expression> {
+        self.next_token();
+        let expression = self.parse_expression(Precedence::Lowest)?;
+        self.expect_peek(Token::Rparen)?;
+        Ok(expression)
     }
 }
 
