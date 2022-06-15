@@ -4,8 +4,8 @@ use crate::lexer::Lexer;
 use crate::lexer::Token;
 use thiserror::Error;
 
-struct Parser<'a> {
-    lexer: Lexer<'a>,
+struct Parser {
+    lexer: Lexer,
     current_token: Token,
     peek_token: Token,
     errors: ParserErrors,
@@ -30,8 +30,8 @@ pub enum ParserError {
 type ParserResult<T> = std::result::Result<T, ParserErrors>;
 type Result<T> = std::result::Result<T, ParserError>;
 
-impl<'a> Parser<'a> {
-    pub fn new(lexer: Lexer<'a>) -> Parser {
+impl Parser {
+    pub fn new(lexer: Lexer) -> Parser {
         let mut parser = Parser {
             lexer,
             current_token: Token::Illegal,

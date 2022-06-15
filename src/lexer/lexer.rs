@@ -2,17 +2,17 @@ use std::str;
 
 use crate::lexer::Token;
 
-pub struct Lexer<'a> {
-    input: &'a str,
+pub struct Lexer {
+    input: String,
     position: usize,
     read_position: usize,
     ch: u8,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Self {
+impl Lexer {
+    pub fn new(input: &str) -> Self {
         let mut lexer = Lexer {
-            input,
+            input: input.to_string(),
             position: 0,
             read_position: 0,
             ch: 0,
